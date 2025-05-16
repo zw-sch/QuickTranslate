@@ -26,25 +26,23 @@ namespace QuickTranslate.Services
     public class TranslationService
     {
         private readonly HttpClient _httpClient;
-        private AppSettings _settings; // 持有当前设置的引用
+        private AppSettings _settings;
 
         public TranslationService(AppSettings settings)
         {
             _httpClient = new HttpClient();
             _httpClient.Timeout = TimeSpan.FromSeconds(15);
-            _settings = settings; // 直接赋值
-            ConfigureHttpClientBasedOnSettings(); // 调用内部方法配置 HttpClient
+            _settings = settings;
+            ConfigureHttpClientBasedOnSettings();
         }
 
         private void ConfigureHttpClientBasedOnSettings()
         {
             _httpClient.DefaultRequestHeaders.Clear();
             _httpClient.DefaultRequestHeaders.Accept.ParseAdd("*/*");
-            _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("QuickTranslateApp/1.3.0"); // 版本迭代
+            _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("QuickTranslateApp/1.3.1"); // 版本迭代
 
-            // 根据当前选择的提供商获取其特定配置
             ProviderConfig? currentProviderConfig = GetCurrentProviderConfig();
-
             if (currentProviderConfig == null)
             {
                 Debug.WriteLine($"[TranslationService] 警告: 未能获取提供商 {_settings.SelectedProvider} 的配置。");
@@ -67,13 +65,12 @@ namespace QuickTranslate.Services
                     Debug.WriteLine($"[TranslationService] 警告: MTranServer 的 ApiKey 为空。");
                 }
             }
-            // DeepLX 的密钥在 URL 中，不需要额外的 Authorization 头部
         }
 
         public void UpdateSettings(AppSettings newSettings)
         {
             _settings = newSettings;
-            ConfigureHttpClientBasedOnSettings(); // 重新配置 HttpClient
+            ConfigureHttpClientBasedOnSettings();
         }
 
         private ProviderConfig? GetCurrentProviderConfig()
@@ -101,7 +98,7 @@ namespace QuickTranslate.Services
 
             string effectiveFromLanguage = fromLanguage ?? _settings.DefaultFromLanguage ?? "auto";
             string effectiveToLanguage = toLanguage ?? _settings.DefaultToLanguage ?? "zh";
-            string requestUrl = currentProviderConfig.ApiUrl; // 使用特定提供商的 URL
+            string requestUrl = currentProviderConfig.ApiUrl;
             HttpContent? content = null;
             string resultErrorMessageBase = "错误: 翻译失败。";
 
@@ -136,8 +133,7 @@ namespace QuickTranslate.Services
                         content = new StringContent(deeplxJsonPayload, Encoding.UTF8, "application/json");
                         Debug.WriteLine($"[TranslationService] DeepLX 请求 URL: {requestUrl}");
                         break;
-
-                    default: // 理论上不会到这里，因为 GetCurrentProviderConfig 会先处理
+                    default:
                         return $"错误: 不支持的翻译服务提供商: {_settings.SelectedProvider}";
                 }
 
@@ -153,7 +149,18 @@ namespace QuickTranslate.Services
                     switch (_settings.SelectedProvider)
                     {
                         case TranslationProvider.MTranServer:
-                            return responseBody;
+                            // *** 修改开始: 处理 MTranServer 的新 JSON 响应格式 ***
+                            var mtranResponse = JsonSerializer.Deserialize<MTranServerResponse>(responseBody);
+                            if (!string.IsNullOrEmpty(mtranResponse?.Result))
+                            {
+                                return mtranResponse.Result;
+                            }
+                            else
+                            {
+                                return $"{resultErrorMessageBase} (未能从MTranServer响应中解析 'result' 字段)";
+                            }
+                        // *** 修改结束 ***
+
                         case TranslationProvider.DeepLX:
                             var deeplxResponse = JsonSerializer.Deserialize<DeepLXResponse>(responseBody);
                             if (deeplxResponse?.Code == 200 && !string.IsNullOrEmpty(deeplxResponse.Data))

@@ -8,14 +8,18 @@ using Gma.System.MouseKeyHook;
 using System.Threading.Tasks;
 using Forms = System.Windows.Forms;
 using System.Drawing;
-using System.Text.Json; // For JsonSerializer if manual update of App.Settings is needed
+using System.Text.Json;
 
 namespace QuickTranslate
 {
     public partial class App : System.Windows.Application
     {
         private IKeyboardMouseEvents? _globalHook;
-        public static AppSettings Settings { get; private set; } // 非可空，在 OnStartup 中确保初始化
+
+        // 为 Settings 属性在声明时提供一个默认的非 null 实例，以解决 CS8618 警告。
+        // 这个实例会在 OnStartup 中被实际加载的设置覆盖。
+        public static AppSettings Settings { get; private set; } = new AppSettings();
+
         public static TranslationService? TranslationService { get; private set; }
         private TranslateResultWindow? _translateResultWindow;
         private Forms.NotifyIcon? _notifyIcon;
@@ -27,17 +31,16 @@ namespace QuickTranslate
             this.ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
             AppSettings? loadedSettings = SettingsManager.LoadSettings();
-            if (loadedSettings == null) // SettingsManager.LoadSettings 现在应该总是返回一个实例
-            {
-                Debug.WriteLine("[App] 严重错误: SettingsManager.LoadSettings() 返回 null! 将使用全新的默认设置。");
-                Settings = new AppSettings();
-            }
-            else
+            // SettingsManager.LoadSettings() 应该总是返回一个有效的 AppSettings 实例（即使是默认的）
+            // 所以 loadedSettings 理论上不应为 null。
+            // 但为了绝对安全，我们仍然使用之前声明时初始化的 Settings 作为最终后备。
+            if (loadedSettings != null)
             {
                 Settings = loadedSettings;
             }
+            // 如果 loadedSettings 为 null（极不可能），Settings 将保持为 new AppSettings()。
 
-            TranslationService = new TranslationService(Settings);
+            TranslationService = new TranslationService(Settings); // Settings 此处保证非 null
             InitializeNotifyIcon();
 
             _globalHook = Hook.GlobalEvents();
@@ -52,11 +55,26 @@ namespace QuickTranslate
         public static void UpdateGlobalSettings(AppSettings newSettings)
         {
             // 实现深拷贝以更新 Settings，避免直接引用外部对象
+            // 同时确保嵌套的 ProviderConfig 对象也被正确处理
             string newSettingsJson = JsonSerializer.Serialize(newSettings);
-            Settings = JsonSerializer.Deserialize<AppSettings>(newSettingsJson) ?? new AppSettings(); // 反序列化回来
+            AppSettings? deserializedSettings = JsonSerializer.Deserialize<AppSettings>(newSettingsJson);
 
-            // 确保 TranslationService 也使用最新的设置
-            TranslationService?.UpdateSettings(Settings);
+            if (deserializedSettings != null)
+            {
+                // 确保嵌套配置在反序列化后不为null (如果 newSettings 可能有null的嵌套对象)
+                deserializedSettings.MTranServerConfig ??= new ProviderConfig();
+                deserializedSettings.DeepLXConfig ??= new ProviderConfig();
+                Settings = deserializedSettings;
+            }
+            else
+            {
+                // 反序列化失败，这是一个严重问题，记录错误，但不改变现有 Settings
+                Debug.WriteLine("[App] 严重错误: 更新全局设置时反序列化失败。保持原有设置。");
+                // 或者可以选择抛出异常或使用 new AppSettings() 作为回退
+                // Settings = new AppSettings(); // 极端情况下的回退
+            }
+
+            TranslationService?.UpdateSettings(Settings); // 确保 TranslationService 使用最新的 Settings
             Debug.WriteLine("[App] 全局设置已更新。");
         }
 
@@ -114,9 +132,6 @@ namespace QuickTranslate
                 _settingsWindowInstance.Closed += (s, args) =>
                 {
                     _settingsWindowInstance = null;
-                    // 当设置窗口关闭后，如果设置被保存，App.Settings 可能已被更新。
-                    // 如果 SettingsWindow 直接修改 App.Settings (不推荐)，则 TranslationService 可能需要再次更新。
-                    // 但由于 SettingsWindow 现在通过 App.UpdateGlobalSettings 更新，TranslationService 已在其中更新。
                 };
                 _settingsWindowInstance.ShowDialog();
             }
@@ -156,7 +171,6 @@ namespace QuickTranslate
             string selectedText = GetSelectedText();
             if (!string.IsNullOrWhiteSpace(selectedText))
             {
-                // TranslationService 内部会使用 App.Settings (通过其构造函数或 UpdateSettings 传入的引用)
                 string translatedText = await TranslationService.TranslateAsync(selectedText);
                 Debug.WriteLine($"[App] 翻译结果: '{translatedText}' (当前提供商: {Settings.SelectedProvider})");
                 ShowTranslationResult(selectedText, translatedText, mousePosition);
