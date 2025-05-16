@@ -11,7 +11,6 @@
 
   <ItemGroup>
     <Compile Remove="Models\Class1.cs" />
-    <Compile Remove="Models\TranslationProvider.cs" />
   </ItemGroup>
 
   <ItemGroup>

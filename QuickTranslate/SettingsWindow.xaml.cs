@@ -1,39 +1,58 @@
 ﻿// SettingsWindow.xaml.cs
 using QuickTranslate.Models;
-using QuickTranslate.Services; // 需要引用 AutoStartManager 所在的命名空间
+using QuickTranslate.Services;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
-using System.Diagnostics; // For Debug.WriteLine
+using System.Windows.Controls;
+using System.Diagnostics;
 
 namespace QuickTranslate
 {
     public partial class SettingsWindow : Window
     {
         private AppSettings _currentSettings;
-        private List<LanguageItem> _sourceLanguages;
-        private List<LanguageItem> _targetLanguages;
+        private List<LanguageItem> _sourceLanguages = new List<LanguageItem>();
+        private List<LanguageItem> _targetLanguages = new List<LanguageItem>();
 
         public SettingsWindow()
         {
             InitializeComponent();
+
             InitializeLanguageLists();
             PopulateComboBoxes();
 
-            _currentSettings = App.Settings ?? SettingsManager.LoadSettings();
+            if (App.Settings == null)
+            {
+                Debug.WriteLine("[SettingsWindow] 严重错误: App.Settings 为 null! 正在尝试从 SettingsManager 加载。");
+                _currentSettings = SettingsManager.LoadSettings();
+                if (_currentSettings == null)
+                {
+                    _currentSettings = new AppSettings(); // 最后的后备
+                    Debug.WriteLine("[SettingsWindow] 警告: SettingsManager.LoadSettings() 也返回 null，已创建新的 AppSettings 实例。");
+                }
+            }
+            else
+            {
+                _currentSettings = App.Settings;
+            }
         }
 
         private void InitializeLanguageLists()
         {
-            _sourceLanguages = new List<LanguageItem>
+            _sourceLanguages.Clear();
+            _sourceLanguages.AddRange(new List<LanguageItem>
             {
                 new LanguageItem("英语", "en"), new LanguageItem("汉语(普通话)", "zh"),
                 new LanguageItem("日语", "ja"), new LanguageItem("韩语", "ko")
-            };
-            _targetLanguages = new List<LanguageItem>
+            });
+
+            _targetLanguages.Clear();
+            _targetLanguages.AddRange(new List<LanguageItem>
             {
                 new LanguageItem("英语", "en"), new LanguageItem("汉语(普通话)", "zh")
-            };
+            });
         }
 
         private void PopulateComboBoxes()
@@ -45,14 +64,23 @@ namespace QuickTranslate
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             LoadSettingsToUI();
+            if (ProviderComboBox != null && (ProviderComboBox.SelectedItem != null || ProviderComboBox.Items.Count > 0))
+            {
+                if (ProviderComboBox.SelectedItem == null && ProviderComboBox.Items.Count > 0)
+                {
+                    ProviderComboBox.SelectedIndex = 0;
+                }
+                ProviderComboBox_SelectionChanged(ProviderComboBox, null); // 传递 null 因为 SelectionChangedEventArgs 未被使用
+            }
         }
 
         private void LoadSettingsToUI()
         {
             if (_currentSettings != null)
             {
-                ApiUrlTextBox.Text = _currentSettings.ApiUrl;
-                ApiKeyTextBox.Text = _currentSettings.ApiKey;
+                ProviderComboBox.SelectedItem = _currentSettings.SelectedProvider;
+                ApiUrlTextBox.Text = _currentSettings.ApiUrl ?? string.Empty; // 确保不为 null
+                ApiKeyTextBox.Text = _currentSettings.ApiKey ?? string.Empty; // 确保不为 null
 
                 var selectedSourceLangItem = _sourceLanguages.FirstOrDefault(lang => lang.Value == _currentSettings.DefaultFromLanguage);
                 DefaultFromLangComboBox.SelectedItem = selectedSourceLangItem ?? _sourceLanguages.FirstOrDefault(lang => lang.Value == "en");
@@ -60,79 +88,103 @@ namespace QuickTranslate
                 var selectedTargetLangItem = _targetLanguages.FirstOrDefault(lang => lang.Value == _currentSettings.DefaultToLanguage);
                 DefaultToLangComboBox.SelectedItem = selectedTargetLangItem ?? _targetLanguages.FirstOrDefault(lang => lang.Value == "zh");
 
-                // 加载开机自启状态
                 try
                 {
                     OpenAtLoginCheckBox.IsChecked = AutoStartManager.IsAutoStartEnabled();
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"加载开机自启状态时出错: {ex.Message}");
-                    OpenAtLoginCheckBox.IsChecked = false; // 出错时默认为未选中
-                    OpenAtLoginCheckBox.IsEnabled = false; // 同时禁用复选框，提示用户可能有问题
-                    System.Windows.MessageBox.Show("无法读取开机自启设置，此选项暂时不可用。", "错误", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    Debug.WriteLine($"[SettingsWindow] 加载开机自启状态时出错: {ex.Message}");
+                    OpenAtLoginCheckBox.IsChecked = false;
+                    OpenAtLoginCheckBox.IsEnabled = false;
+                    System.Windows.MessageBox.Show(this, "无法读取开机自启设置，此选项暂时不可用。", "错误", MessageBoxButton.OK, MessageBoxImage.Warning);
                 }
             }
             else
             {
-                // ... _currentSettings 为 null 的处理逻辑 ...
-                ApiUrlTextBox.Text = "http://example.com/api";
-                ApiKeyTextBox.Text = string.Empty;
-                DefaultFromLangComboBox.SelectedItem = _sourceLanguages.FirstOrDefault(lang => lang.Value == "en");
-                DefaultToLangComboBox.SelectedItem = _targetLanguages.FirstOrDefault(lang => lang.Value == "zh");
-                OpenAtLoginCheckBox.IsChecked = false; // 默认未选中
+                Debug.WriteLine("[SettingsWindow] 严重警告: _currentSettings 为 null，UI可能未正确初始化。");
+                if (ProviderComboBox != null && ProviderComboBox.Items.Count > 0) ProviderComboBox.SelectedIndex = 0;
+                if (ApiUrlTextBox != null) ApiUrlTextBox.Text = "http://localhost:8080";
+                if (ApiKeyTextBox != null) ApiKeyTextBox.Text = "";
+            }
+        }
+
+        // 将参数 e 重命名为 _ (弃元) 或 _e 来表示它未被使用
+        private void ProviderComboBox_SelectionChanged(object sender, SelectionChangedEventArgs? _) // 使用弃元 _
+        {
+            if (!this.IsLoaded || ApiUrlLabel == null || ApiKeyLabel == null || ApiKeyTextBox == null || ProviderComboBox.SelectedItem == null)
+            {
+                return;
+            }
+
+            if (ProviderComboBox.SelectedItem is TranslationProvider selectedProvider)
+            {
+                switch (selectedProvider)
+                {
+                    case TranslationProvider.MTranServer:
+                        ApiUrlLabel.Content = "API 地址 (基础 URL):";
+                        ApiUrlTextBox.ToolTip = "例如: http://10.0.0.147:8989 (程序会自动拼接 /translate)";
+                        ApiKeyLabel.Visibility = Visibility.Visible;
+                        ApiKeyTextBox.Visibility = Visibility.Visible;
+                        ApiKeyLabel.Content = "API 密钥 (Token):";
+                        break;
+                    case TranslationProvider.DeepLX:
+                        ApiUrlLabel.Content = "DeepLX API 端点:";
+                        ApiUrlTextBox.ToolTip = "完整的 DeepLX 端点 URL (包含路径中的密钥和 /translate)";
+                        ApiKeyLabel.Visibility = Visibility.Collapsed;
+                        ApiKeyTextBox.Visibility = Visibility.Collapsed;
+                        break;
+                }
             }
         }
 
         private void SaveButton_Click(object sender, RoutedEventArgs e)
         {
-            if (_currentSettings == null)
+            if (_currentSettings == null) { _currentSettings = new AppSettings(); }
+
+            if (ProviderComboBox.SelectedItem is TranslationProvider selectedProviderValue)
             {
-                _currentSettings = new AppSettings();
-            }
-
-            _currentSettings.ApiUrl = ApiUrlTextBox.Text.Trim();
-            _currentSettings.ApiKey = ApiKeyTextBox.Text.Trim();
-
-            if (DefaultFromLangComboBox.SelectedValue != null)
-                _currentSettings.DefaultFromLanguage = DefaultFromLangComboBox.SelectedValue.ToString();
-            else if (_sourceLanguages.Any()) _currentSettings.DefaultFromLanguage = _sourceLanguages.First().Value;
-            else _currentSettings.DefaultFromLanguage = "en";
-
-            if (DefaultToLangComboBox.SelectedValue != null)
-                _currentSettings.DefaultToLanguage = DefaultToLangComboBox.SelectedValue.ToString();
-            else if (_targetLanguages.Any()) _currentSettings.DefaultToLanguage = _targetLanguages.First().Value;
-            else _currentSettings.DefaultToLanguage = "zh";
-
-            // 保存其他设置到文件
-            SettingsManager.SaveSettings(_currentSettings);
-            App.TranslationService?.UpdateSettings(_currentSettings);
-
-            // 设置开机自启
-            bool enableAutoStart = OpenAtLoginCheckBox.IsChecked ?? false;
-            bool autoStartSetSuccessfully = true; // 标记是否成功
-            try
-            {
-                if (OpenAtLoginCheckBox.IsEnabled) // 仅当复选框可用时才尝试设置
-                {
-                    autoStartSetSuccessfully = AutoStartManager.SetAutoStart(enableAutoStart);
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"保存开机自启设置时出错: {ex.Message}");
-                autoStartSetSuccessfully = false;
-            }
-
-
-            if (autoStartSetSuccessfully)
-            {
-                System.Windows.MessageBox.Show("设置已保存！", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
+                _currentSettings.SelectedProvider = selectedProviderValue;
             }
             else
             {
-                System.Windows.MessageBox.Show("部分设置已保存，但设置开机自启失败。\n请检查程序日志或尝试手动设置。", "警告", MessageBoxButton.OK, MessageBoxImage.Warning);
+                _currentSettings.SelectedProvider = TranslationProvider.MTranServer;
             }
+
+            _currentSettings.ApiUrl = ApiUrlTextBox.Text?.Trim() ?? string.Empty; // 处理可能的 null
+
+            if (_currentSettings.SelectedProvider == TranslationProvider.MTranServer)
+            {
+                _currentSettings.ApiKey = ApiKeyTextBox.Text?.Trim() ?? string.Empty; // 处理可能的 null
+            }
+            else
+            {
+                _currentSettings.ApiKey = string.Empty;
+            }
+
+            string? fromLangValue = DefaultFromLangComboBox.SelectedValue as string;
+            _currentSettings.DefaultFromLanguage = fromLangValue ?? _sourceLanguages.FirstOrDefault()?.Value ?? "en"; // 增加对 FirstOrDefault()?.Value 的 null 检查
+
+            string? toLangValue = DefaultToLangComboBox.SelectedValue as string;
+            _currentSettings.DefaultToLanguage = toLangValue ?? _targetLanguages.FirstOrDefault()?.Value ?? "zh"; // 增加对 FirstOrDefault()?.Value 的 null 检查
+
+            SettingsManager.SaveSettings(_currentSettings);
+            App.TranslationService?.UpdateSettings(_currentSettings);
+
+            bool enableAutoStart = OpenAtLoginCheckBox.IsChecked ?? false;
+            bool autoStartSetSuccessfully = true;
+            try
+            {
+                if (OpenAtLoginCheckBox.IsEnabled)
+                { autoStartSetSuccessfully = AutoStartManager.SetAutoStart(enableAutoStart); }
+            }
+            catch (Exception ex)
+            { Debug.WriteLine($"[SettingsWindow] 保存开机自启设置时出错: {ex.Message}"); autoStartSetSuccessfully = false; }
+
+            if (autoStartSetSuccessfully)
+            { System.Windows.MessageBox.Show(this, "设置已保存！", "成功", MessageBoxButton.OK, MessageBoxImage.Information); }
+            else
+            { System.Windows.MessageBox.Show(this, "部分设置已保存，但设置开机自启失败。", "警告", MessageBoxButton.OK, MessageBoxImage.Warning); }
 
             this.DialogResult = true;
             this.Close();

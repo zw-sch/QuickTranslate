@@ -4,16 +4,25 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:QuickTranslate"
-        mc:Ignorable="d"
+        xmlns:models="clr-namespace:QuickTranslate.Models"
+        xmlns:system="clr-namespace:System;assembly=mscorlib" mc:Ignorable="d"
         Title="设置 - QuickTranslate" 
-        Width="500" Height="380"
+        Width="550" Height="460"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
         Background="#F0F0F0"
         Loaded="Window_Loaded">
+    <Window.Resources>
+        <ObjectDataProvider MethodName="GetValues" ObjectType="{x:Type system:Enum}" x:Key="TranslationProviderEnumValues">
+            <ObjectDataProvider.MethodParameters>
+                <x:Type TypeName="models:TranslationProvider"/>
+            </ObjectDataProvider.MethodParameters>
+        </ObjectDataProvider>
+    </Window.Resources>
     <Grid Margin="20">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -23,28 +32,35 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="Auto" MinWidth="140"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
-        <Label Content="API 地址:" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,0"/>
-        <TextBox x:Name="ApiUrlTextBox" Grid.Row="0" Grid.Column="1" Margin="0,5" Padding="5"/>
+        <Label Content="翻译服务提供商:" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,0"/>
+        <ComboBox x:Name="ProviderComboBox" Grid.Row="0" Grid.Column="1" Margin="0,5" Padding="5"
+                  ItemsSource="{Binding Source={StaticResource TranslationProviderEnumValues}}"
+                  SelectionChanged="ProviderComboBox_SelectionChanged"/>
 
-        <Label Content="API 密钥 (Token):" Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,0"/>
-        <TextBox x:Name="ApiKeyTextBox" Grid.Row="1" Grid.Column="1" Margin="0,5" Padding="5"/>
+        <Label x:Name="ApiUrlLabel" Content="API 地址/端点:" Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,0"/>
+        <TextBox x:Name="ApiUrlTextBox" Grid.Row="1" Grid.Column="1" Margin="0,5" Padding="5" 
+                 ToolTip="MTranServer: 基础URL (如 http://host:port)&#x0a;DeepLX: 完整端点URL (如 https://api.deeplx.org/KEY/translate)"/>
 
-        <Label Content="默认源语言:" Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,0"/>
-        <ComboBox x:Name="DefaultFromLangComboBox" Grid.Row="2" Grid.Column="1" Margin="0,5" Padding="5" 
+        <Label x:Name="ApiKeyLabel" Content="API 密钥 (Token):" Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,0"/>
+        <TextBox x:Name="ApiKeyTextBox" Grid.Row="2" Grid.Column="1" Margin="0,5" Padding="5"/>
+
+        <Label Content="默认源语言:" Grid.Row="3" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,0"/>
+        <ComboBox x:Name="DefaultFromLangComboBox" Grid.Row="3" Grid.Column="1" Margin="0,5" Padding="5" 
                   DisplayMemberPath="DisplayName" SelectedValuePath="Value"/>
 
-        <Label Content="默认目标语言:" Grid.Row="3" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,0"/>
-        <ComboBox x:Name="DefaultToLangComboBox" Grid.Row="3" Grid.Column="1" Margin="0,5" Padding="5"
+        <Label Content="默认目标语言:" Grid.Row="4" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,0"/>
+        <ComboBox x:Name="DefaultToLangComboBox" Grid.Row="4" Grid.Column="1" Margin="0,5" Padding="5"
                   DisplayMemberPath="DisplayName" SelectedValuePath="Value"/>
 
         <CheckBox x:Name="OpenAtLoginCheckBox" Content="开机时自动启动 QuickTranslate" 
-                  Grid.Row="4" Grid.ColumnSpan="2" Margin="0,15,0,15" 
+                  Grid.Row="5" Grid.ColumnSpan="2" Margin="0,15,0,15" 
                   IsEnabled="True"/>
-        <StackPanel Grid.Row="6" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right">
+
+        <StackPanel Grid.Row="7" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right">
             <Button x:Name="SaveButton" Content="保存设置" Width="100" Margin="0,0,10,0" Padding="8" Click="SaveButton_Click" Background="#DDEEFF" BorderBrush="#AACCFF"/>
             <Button x:Name="CancelButton" Content="取消" Width="100" Padding="8" Click="CancelButton_Click" Background="#FFDDDD" BorderBrush="#FFAAAA"/>
         </StackPanel>
