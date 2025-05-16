@@ -1,42 +1,44 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-// Models/AppSettings.cs
+﻿// Models/AppSettings.cs
 namespace QuickTranslate.Models
 {
     public class AppSettings
     {
         /// <summary>
-        /// 用户选择的翻译服务提供商。
+        /// 用户当前选择的翻译服务提供商。
         /// </summary>
-        public TranslationProvider SelectedProvider { get; set; } = TranslationProvider.MTranServer; // 默认为 MTranServer
+        public TranslationProvider SelectedProvider { get; set; } = TranslationProvider.MTranServer;
 
         /// <summary>
-        /// API 的 URL。
-        /// 对于 MTranServer: 应该是基础 URL，例如 "http://10.0.0.147:8989"。程序会自动拼接 "/translate"。
-        /// 对于 DeepLX: 应该是完整的 API 端点 URL，包含路径中的密钥和 "/translate" 后缀，例如 "https://api.deeplx.org/YOUR_KEY/translate"。
+        /// MTranServer 的特定配置。
         /// </summary>
-        public string ApiUrl { get; set; } = "http://10.0.0.147:8989";
+        public ProviderConfig MTranServerConfig { get; set; }
 
         /// <summary>
-        /// API 密钥。
-        /// 对于 MTranServer: 是您的授权令牌，例如 "zhangwei123"。
-        /// 对于 DeepLX: 此字段通常不使用，因为密钥已包含在 ApiUrl 中。可以留空。
+        /// DeepLX 的特定配置。
         /// </summary>
-        public string ApiKey { get; set; } = "zhangwei123";
+        public ProviderConfig DeepLXConfig { get; set; }
 
-        /// <summary>
-        /// 默认的源语言代码 (例如 "en", "zh")。
-        /// </summary>
+        // 全局语言设置保持不变
         public string DefaultFromLanguage { get; set; } = "en";
+        public string DefaultToLanguage { get; set; } = "zh";
 
         /// <summary>
-        /// 默认的目标语言代码 (例如 "en", "zh")。
+        /// 构造函数，初始化提供商的默认配置。
         /// </summary>
-        public string DefaultToLanguage { get; set; } = "zh";
+        public AppSettings()
+        {
+            // 为每个提供商设置一些合理的初始默认值
+            MTranServerConfig = new ProviderConfig
+            {
+                ApiUrl = "http://10.0.0.147:8989", // 您的 MTranServer 默认 URL
+                ApiKey = "123456"             // 您的 MTranServer 默认 Key
+            };
+
+            DeepLXConfig = new ProviderConfig
+            {
+                ApiUrl = "https://api.xxx.xxx/YOUR_API_KEY_HERE/translate", // 提示用户替换密钥
+                ApiKey = string.Empty // DeepLX 的 Key 在 URL 中
+            };
+        }
     }
 }
-

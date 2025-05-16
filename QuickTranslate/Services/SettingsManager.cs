@@ -3,17 +3,17 @@ using QuickTranslate.Models;
 using System;
 using System.IO;
 using System.Text.Json;
+using System.Diagnostics; // For Debug.WriteLine
 
 namespace QuickTranslate.Services
 {
-    public class SettingsManager
+    public static class SettingsManager // 保持为静态类
     {
-        private static string AppName = "QuickTranslate"; // 用于创建配置文件夹
-        private static string SettingsFileName = "settings.json";
+        private static readonly string AppName = "QuickTranslate";
+        private static readonly string SettingsFileName = "settings.json";
 
         private static string GetSettingsFilePath()
         {
-            // %APPDATA%\QuickTranslate\settings.json
             string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
             string appFolderPath = Path.Combine(appDataPath, AppName);
             Directory.CreateDirectory(appFolderPath); // 确保目录存在
@@ -28,18 +28,24 @@ namespace QuickTranslate.Services
                 try
                 {
                     string json = File.ReadAllText(filePath);
-                    return JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
+                    AppSettings? loadedSettings = JsonSerializer.Deserialize<AppSettings>(json);
+                    if (loadedSettings != null)
+                    {
+                        // 确保嵌套的配置对象不是 null (如果旧的 settings.json 可能没有这些)
+                        loadedSettings.MTranServerConfig ??= new ProviderConfig("http://10.0.0.147:8989", "zhangwei123");
+                        loadedSettings.DeepLXConfig ??= new ProviderConfig("https://api.deeplx.org/YOUR_KEY/translate", string.Empty);
+                        return loadedSettings;
+                    }
                 }
                 catch (Exception ex)
                 {
-                    // 处理加载错误，例如记录日志或返回默认值
-                    Console.WriteLine($"Error loading settings: {ex.Message}");
-                    return new AppSettings(); // 返回默认设置
+                    Debug.WriteLine($"[SettingsManager] 加载设置时出错: {ex.Message}。将返回新的默认设置。");
+                    // 发生错误时，返回一个新的默认 AppSettings 实例
                 }
             }
-            // 如果文件不存在，创建一个包含默认设置的新文件
+            // 如果文件不存在或加载失败，创建一个包含默认设置的新 AppSettings 实例
             var defaultSettings = new AppSettings();
-            SaveSettings(defaultSettings);
+            SaveSettings(defaultSettings); // 可以选择在首次创建时保存一次默认设置
             return defaultSettings;
         }
 
@@ -51,11 +57,12 @@ namespace QuickTranslate.Services
                 var options = new JsonSerializerOptions { WriteIndented = true }; // 格式化JSON，易于阅读
                 string json = JsonSerializer.Serialize(settings, options);
                 File.WriteAllText(filePath, json);
+                Debug.WriteLine($"[SettingsManager] 设置已保存到: {filePath}");
             }
             catch (Exception ex)
             {
-                // 处理保存错误
-                Console.WriteLine($"Error saving settings: {ex.Message}");
+                Debug.WriteLine($"[SettingsManager] 保存设置时出错: {ex.Message}");
+                // 可以考虑通知用户保存失败
             }
         }
     }
