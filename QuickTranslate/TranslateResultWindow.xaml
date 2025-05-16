@@ -6,10 +6,9 @@
         xmlns:local="clr-namespace:QuickTranslate"
         mc:Ignorable="d"
         Title="翻译结果"
-        Width="450" Height="300"
+        Width="480" Height="320"
         WindowStyle="ToolWindow" 
-        Topmost="True" 
-        ShowInTaskbar="False"
+        Topmost="True" ShowInTaskbar="False"
         ResizeMode="CanResizeWithGrip"
         WindowStartupLocation="Manual"
         Background="#F0F0F0"
@@ -26,25 +25,20 @@
         </Grid.RowDefinitions>
 
         <TextBlock Text="原文:" FontWeight="Bold" Grid.Row="0" Margin="0,0,0,5" Foreground="#333"/>
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" MaxHeight="120" BorderBrush="#CCC" BorderThickness="1">
-            <TextBlock x:Name="OriginalTextTextBlock" 
-                       TextWrapping="Wrap" 
-                       Background="White" 
-                       Padding="8" 
-                       Foreground="#222"
-                       ScrollViewer.CanContentScroll="True"/>
-        </ScrollViewer>
+        <TextBox x:Name="OriginalTextDisplay" Grid.Row="1" 
+                 TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"
+                 IsReadOnly="True" BorderThickness="1" BorderBrush="#CCC" Background="White" Padding="8" Foreground="#222"
+                 MaxHeight="100" MinHeight="40"/>
 
         <TextBlock Text="译文:" FontWeight="Bold" Grid.Row="2" Margin="0,12,0,5" Foreground="#333"/>
-        <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto" BorderBrush="#CCC" BorderThickness="1">
-            <TextBlock x:Name="TranslatedTextTextBlock" 
-                       TextWrapping="Wrap" 
-                       Background="White" 
-                       Padding="8" 
-                       Foreground="#111"
-                       ScrollViewer.CanContentScroll="True"/>
-        </ScrollViewer>
+        <TextBox x:Name="TranslatedTextDisplay" Grid.Row="3"
+                 TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"
+                 IsReadOnly="True" BorderThickness="1" BorderBrush="#CCC" Background="White" Padding="8" Foreground="#111"
+                 MinHeight="60"/>
 
-        <Button x:Name="CloseButton" Content="关闭 (Esc)" Grid.Row="4" HorizontalAlignment="Right" Margin="0,12,0,0" Padding="12,6" Click="CloseButton_Click" Background="#E0E0E0" BorderBrush="#BBB"/>
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+            <Button x:Name="PinButton" Content="📌 固定" Width="90" Margin="0,0,10,0" Padding="8,5" Click="PinButton_Click" ToolTip="点击以固定/解除固定窗口"/>
+            <Button x:Name="CloseButton" Content="关闭 (Esc)" Width="90" Padding="8,5" Click="CloseButton_Click" Background="#E0E0E0" BorderBrush="#BBB"/>
+        </StackPanel>
     </Grid>
 </Window>
