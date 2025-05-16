@@ -1,0 +1,50 @@
+﻿<Window x:Class="QuickTranslate.TranslateResultWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:QuickTranslate"
+        mc:Ignorable="d"
+        Title="翻译结果"
+        Width="450" Height="300"
+        WindowStyle="ToolWindow" 
+        Topmost="True" 
+        ShowInTaskbar="False"
+        ResizeMode="CanResizeWithGrip"
+        WindowStartupLocation="Manual"
+        Background="#F0F0F0"
+        Loaded="Window_Loaded"
+        Deactivated="Window_Deactivated"
+        PreviewKeyDown="Window_PreviewKeyDown">
+    <Grid Margin="15">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Text="原文:" FontWeight="Bold" Grid.Row="0" Margin="0,0,0,5" Foreground="#333"/>
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" MaxHeight="120" BorderBrush="#CCC" BorderThickness="1">
+            <TextBlock x:Name="OriginalTextTextBlock" 
+                       TextWrapping="Wrap" 
+                       Background="White" 
+                       Padding="8" 
+                       Foreground="#222"
+                       ScrollViewer.CanContentScroll="True"/>
+        </ScrollViewer>
+
+        <TextBlock Text="译文:" FontWeight="Bold" Grid.Row="2" Margin="0,12,0,5" Foreground="#333"/>
+        <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto" BorderBrush="#CCC" BorderThickness="1">
+            <TextBlock x:Name="TranslatedTextTextBlock" 
+                       TextWrapping="Wrap" 
+                       Background="White" 
+                       Padding="8" 
+                       Foreground="#111"
+                       ScrollViewer.CanContentScroll="True"/>
+        </ScrollViewer>
+
+        <Button x:Name="CloseButton" Content="关闭 (Esc)" Grid.Row="4" HorizontalAlignment="Right" Margin="0,12,0,0" Padding="12,6" Click="CloseButton_Click" Background="#E0E0E0" BorderBrush="#BBB"/>
+    </Grid>
+</Window>
